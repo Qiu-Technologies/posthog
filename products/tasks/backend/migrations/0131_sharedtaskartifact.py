@@ -9,7 +9,7 @@ import posthog.uuidt
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("tasks", "0124_drop_retired_code_home_tables"),
+        ("tasks", "0130_remove_twd_claimed_lease_idx"),
         ("posthog", "1333_uploaded_media_library_index"),
     ]
 

@@ -4,7 +4,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("posthog", "1366_project_deletion_scheduled_at"),
+        ("posthog", "1368_sessionrecording_untrack_lts_fields"),
         ("canvas", "0021_canvas_fork_lineage"),
     ]
 
