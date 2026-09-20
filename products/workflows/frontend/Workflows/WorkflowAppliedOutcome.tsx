@@ -1,6 +1,5 @@
 import { LemonCollapse, LemonTag, Tooltip } from '@posthog/lemon-ui'
 
-import { Sparkline } from 'lib/components/Sparkline'
 import { TZLabel } from 'lib/components/TZLabel'
 import { LemonTable } from 'lib/lemon-ui/LemonTable'
 
@@ -21,15 +20,6 @@ const ROW_LABELS: Record<string, string> = {
 }
 
 // Roughly 6rem a bar, so a workflow with three versions does not get three bars the width of the card.
-const CHART_WIDTHS = [
-    'max-w-[8rem]',
-    'max-w-[8rem]',
-    'max-w-[14rem]',
-    'max-w-[20rem]',
-    'max-w-[26rem]',
-    'max-w-[32rem]',
-]
-
 function percent(reading: WorkflowProposalMetricApi | undefined): number {
     return reading?.value ? Math.round(reading.value * 1000) / 10 : 0
 }
@@ -55,7 +45,6 @@ export function WorkflowAppliedOutcome({
     // Only versions that sent something can carry a rate, and a zero bar for one that never ran reads as a drop.
     const charted = (outcome.versions ?? []).filter((version) => version.guardrails[0]?.n || version.target.n)
     const latest: WorkflowProposalVersionOutcomeApi | undefined = charted[charted.length - 1]
-    const labels = charted.map((version) => `v${version.version}${version.applied ? ' (applied)' : ''}`)
 
     return (
         <div className="border rounded p-3 bg-surface-primary flex flex-col gap-2">
@@ -80,66 +69,76 @@ export function WorkflowAppliedOutcome({
                         Open rate of this step on each published version, over the time that version was live. Other
                         edits ship in these versions too, so read a move as a signal to look closer, not as proof.
                     </p>
-                    <div
+                    <LemonTable
+                        size="small"
                         data-attr="workflow-suggestion-outcome"
-                        className={`flex flex-col gap-1 ${CHART_WIDTHS[Math.min(charted.length, CHART_WIDTHS.length - 1)]}`}
-                    >
-                        <Sparkline
-                            className="w-full h-28"
-                            type="bar"
-                            labels={labels}
-                            // Two series so the version the suggestion shipped as is its own colour. Every other
-                            // index is zero, and stacked bars put one value per version either way.
-                            data={[
-                                {
-                                    name: 'The suggestion',
-                                    values: charted.map((version) => (version.applied ? percent(version.target) : 0)),
-                                    color: 'warning',
-                                },
-                                {
-                                    name: 'Carrying the change',
-                                    values: charted.map((version) =>
-                                        !version.applied && version.carries_change ? percent(version.target) : 0
-                                    ),
-                                    color: 'success',
-                                },
-                                {
-                                    name: 'Without the change',
-                                    values: charted.map((version) =>
-                                        version.applied || version.carries_change ? 0 : percent(version.target)
-                                    ),
-                                    color: 'muted',
-                                },
-                            ]}
-                            hideZerosInTooltip
-                            renderTooltipValue={(value) => `${value}%`}
-                            // From zero, so a bar's height is the rate rather than its distance from the lowest version.
-                            valueDomain={{ min: 0 }}
-                        />
-                        <div className="flex">
-                            {charted.map((version) => (
-                                <span key={version.version} className="flex-1 flex flex-col items-center text-xs">
-                                    <span className="font-semibold">
-                                        {formatValue(version.target.value, 'rate') ?? 'No data'}
+                        columns={[
+                            {
+                                title: 'Version',
+                                key: 'version',
+                                width: '25%',
+                                render: (_, version) => (
+                                    <span className="flex items-center gap-2 flex-wrap">
+                                        <span className={version.applied ? 'font-semibold' : undefined}>
+                                            v{version.version}
+                                        </span>
+                                        {version.applied && (
+                                            <LemonTag type="warning" size="small">
+                                                the suggestion
+                                            </LemonTag>
+                                        )}
+                                        {version.carries_change && version.other_changes && (
+                                            <span className="text-xs text-secondary">+ other edits</span>
+                                        )}
                                     </span>
-                                    <span className={version.applied ? 'font-semibold text-warning' : 'text-secondary'}>
-                                        v{version.version}
-                                        {version.applied ? ' · applied' : ''}
+                                ),
+                            },
+                            {
+                                title: 'Opened',
+                                key: 'opened',
+                                width: '25%',
+                                render: (_, version) => (
+                                    <span className="flex flex-col gap-1">
+                                        <span>{formatValue(version.target.value, 'rate') ?? 'No data'}</span>
+                                        <span className="h-1 rounded bg-fill-primary overflow-hidden">
+                                            <span
+                                                className="block h-full rounded bg-accent"
+                                                // The width is the rate against the best version, so it cannot be a class.
+                                                style={{
+                                                    width: `${Math.max(2, (percent(version.target) / Math.max(...charted.map((other) => percent(other.target)), 1)) * 100)}%`,
+                                                }}
+                                            />
+                                        </span>
                                     </span>
-                                    {version.carries_change && version.other_changes && (
-                                        <Tooltip title="This version changed other things too, so its numbers hold more than this suggestion.">
-                                            <span className="text-secondary">+ other edits</span>
-                                        </Tooltip>
-                                    )}
-                                </span>
-                            ))}
-                        </div>
-                    </div>
+                                ),
+                            },
+                            {
+                                title: 'Clicked',
+                                key: 'clicked',
+                                width: '25%',
+                                render: (_, version) => (
+                                    <span className="text-secondary">
+                                        {formatValue(version.click_through.value, 'rate') ?? 'No data'}
+                                    </span>
+                                ),
+                            },
+                            {
+                                title: 'Sends',
+                                key: 'sends',
+                                width: '25%',
+                                render: (_, version) => (
+                                    <span className="text-secondary">
+                                        {version.guardrails[0]?.n ?? version.target.n}
+                                    </span>
+                                ),
+                            },
+                        ]}
+                        dataSource={charted}
+                        rowKey={(version) => String(version.version)}
+                    />
                     {latest && (
                         <div className="flex items-center gap-4 flex-wrap text-sm">
-                            <span className="text-secondary">v{latest.version}:</span>
-                            <Reading label={ROW_LABELS['email open rate']} reading={latest.target} />
-                            <Reading label={ROW_LABELS['click rate']} reading={latest.click_through} />
+                            <span className="text-secondary">Live version:</span>
                             {latest.guardrails.map((guardrail) => (
                                 <Reading
                                     key={guardrail.metric}
@@ -147,9 +146,6 @@ export function WorkflowAppliedOutcome({
                                     reading={guardrail}
                                 />
                             ))}
-                            <span className="text-secondary">
-                                on {latest.guardrails[0]?.n ?? latest.target.n} sends
-                            </span>
                             {latest.target.below_minimum_sample && (
                                 <Tooltip
                                     title={`Under ${MIN_EVIDENCE_SAMPLE} sends. Not enough for the rates to mean anything.`}
