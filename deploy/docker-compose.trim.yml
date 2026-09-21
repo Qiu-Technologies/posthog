@@ -1,0 +1,32 @@
+# Trim overlay — merged last by deploy-box.sh and the pipeline.
+#
+# Services here get a profile, which removes them from a default
+# `docker compose up -d` (they only start when the profile is requested
+# explicitly, e.g. `docker compose --profile full up -d`). Nothing that
+# remains depends on them (verified against depends_on in
+# docker-compose.yml), so core analytics — capture, ingestion, ClickHouse,
+# dashboards, feature flags, persons — is unaffected.
+#
+# Disabled, and what you give up:
+#   temporal, temporal-django-worker, temporal-admin-tools, temporal-ui
+#       → batch exports and scheduled/background workflows stop running
+#   plugins → the legacy plugin server (deprecated upstream; superseded by
+#       CDP transformations)
+#   cymbal, cymbal-resolution, elasticsearch → error tracking (frontend
+#       issues views go empty; nothing else reads them)
+#   replay-capture, recording-api → session replay ingestion/API (replay
+#       playback of already-stored recordings may degrade)
+#
+# To re-enable one permanently: delete its line here and push.
+# To run everything once: docker compose --profile trimmed up -d
+services:
+  temporal: { profiles: [trimmed] }
+  temporal-django-worker: { profiles: [trimmed] }
+  temporal-admin-tools: { profiles: [trimmed] }
+  temporal-ui: { profiles: [trimmed] }
+  plugins: { profiles: [trimmed] }
+  cymbal: { profiles: [trimmed] }
+  cymbal-resolution: { profiles: [trimmed] }
+  elasticsearch: { profiles: [trimmed] }
+  replay-capture: { profiles: [trimmed] }
+  recording-api: { profiles: [trimmed] }
