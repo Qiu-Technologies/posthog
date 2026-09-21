@@ -51,7 +51,9 @@ stages:
         # Cold boots legitimately exceed 6 minutes (full CH schema + migrations).
         for i in $(seq 1 40); do
           CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 http://10.0.0.201:18080/ 2>/dev/null || echo 000)
-          [ "$CODE" = "200" ] && { echo "✓ posthog web serving on the box"; exit 0; }
+          case "$CODE" in
+            200|302) echo "✓ posthog web serving on the box (http $CODE)"; exit 0 ;;
+          esac
           sleep 15
         done
         echo "✗ posthog web did not come up on the box (last http: $CODE)"

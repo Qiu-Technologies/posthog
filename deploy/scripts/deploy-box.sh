@@ -90,9 +90,12 @@ fi
 echo "→ [5/5] health: polling http://$PROXY_BIND_IP:$PROXY_PORT/ (the path the tunnel uses)"
 # 40 x 15s = 10 min: a cold boot applies the full CH schema + every Django
 # migration on an empty database, which legitimately exceeds 6 minutes.
+# PostHog answers / with a 302 to /login — that IS the healthy signal.
 for i in $(seq 1 40); do
   CODE="$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 "http://$PROXY_BIND_IP:$PROXY_PORT/" 2>/dev/null || echo 000)"
-  [ "$CODE" = "200" ] && { echo "✓ posthog web serving on the box (deploy $SHORT)"; exit 0; }
+  case "$CODE" in
+    200|302) echo "✓ posthog web serving on the box (deploy $SHORT, http $CODE)"; exit 0 ;;
+  esac
   [ "$i" = 40 ] && break
   sleep 15
 done
