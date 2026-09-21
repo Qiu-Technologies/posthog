@@ -48,8 +48,9 @@ stages:
       interval: 15s
       run: |
         # Box serving path only — the public hostname is cut over separately.
-        # Cold boots legitimately exceed 6 minutes (full CH schema + migrations).
-        for i in $(seq 1 40); do
+        # 60 x 15s = 15 min: a recreate on a new app image re-runs migrations
+        # (incl. async) and exceeds 10 minutes on this box.
+        for i in $(seq 1 60); do
           CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 http://10.0.0.201:18080/ 2>/dev/null || echo 000)
           case "$CODE" in
             200|302) echo "✓ posthog web serving on the box (http $CODE)"; exit 0 ;;
