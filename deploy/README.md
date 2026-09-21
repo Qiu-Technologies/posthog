@@ -10,6 +10,12 @@ deployment-specific lives in `deploy/`.
 > vault (`pass posthog/deploy-env`, `pass posthog/env-services`) and on the box
 > at `/srv/apps/posthog/.env*` (0600). Never commit real `.env` files.
 
+**Default branch is `main` while upstream uses `master`** — deliberate: the
+Forge controller only runs pipelines for the default branch (`main`), and
+deploys should be deliberate anyway. To take an upstream upgrade: fetch
+`https://github.com/PostHog/posthog.git`, merge `master` into `main`, resolve,
+push — Forge redeploys.
+
 ## Layout
 
 ```
