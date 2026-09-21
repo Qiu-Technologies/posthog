@@ -67,9 +67,12 @@ fi
 
 echo "→ [3/5] compose pull + up on the box (background — the images are GBs)"
 R "cd '$BOX_DIR' && rm -f deploy-run.log && PROXY_BIND_IP='$PROXY_BIND_IP' nohup bash -c '
-  set -e
   echo \"[\$(date -Is)] pull start sha=$SHORT\" >> deploy-run.log
-  docker compose -f docker-compose.yml pull >> deploy-run.log 2>&1
+  # A failed pull (e.g. Docker Hub anonymous rate limit) must not block the
+  # deploy: compose then runs the cached images, and the health check below
+  # is the real gate. Re-run the pipeline later to pick up new images.
+  docker compose -f docker-compose.yml pull >> deploy-run.log 2>&1 \
+    || echo \"[\$(date -Is)] pull FAILED — continuing with cached images\" >> deploy-run.log
   echo \"[\$(date -Is)] up start\" >> deploy-run.log
   docker compose -f docker-compose.yml up -d >> deploy-run.log 2>&1
   echo \"[\$(date -Is)] DONE\" >> deploy-run.log
