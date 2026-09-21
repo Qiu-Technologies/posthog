@@ -87,11 +87,13 @@ if [ "$DONE" != 1 ]; then
   exit 1
 fi
 
-echo "→ [5/5] health: polling http://$PROXY_BIND_IP:$PROXY_PORT/ (the path the tunnel will use)"
-for i in $(seq 1 24); do
+echo "→ [5/5] health: polling http://$PROXY_BIND_IP:$PROXY_PORT/ (the path the tunnel uses)"
+# 40 x 15s = 10 min: a cold boot applies the full CH schema + every Django
+# migration on an empty database, which legitimately exceeds 6 minutes.
+for i in $(seq 1 40); do
   CODE="$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 "http://$PROXY_BIND_IP:$PROXY_PORT/" 2>/dev/null || echo 000)"
   [ "$CODE" = "200" ] && { echo "✓ posthog web serving on the box (deploy $SHORT)"; exit 0; }
-  [ "$i" = 24 ] && break
+  [ "$i" = 40 ] && break
   sleep 15
 done
 echo "✗ posthog web did not come up on the box (last http: $CODE). Container state:"

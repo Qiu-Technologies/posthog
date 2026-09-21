@@ -48,7 +48,8 @@ stages:
       interval: 15s
       run: |
         # Box serving path only — the public hostname is cut over separately.
-        for i in $(seq 1 24); do
+        # Cold boots legitimately exceed 6 minutes (full CH schema + migrations).
+        for i in $(seq 1 40); do
           CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 http://10.0.0.201:18080/ 2>/dev/null || echo 000)
           [ "$CODE" = "200" ] && { echo "✓ posthog web serving on the box"; exit 0; }
           sleep 15
