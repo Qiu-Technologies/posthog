@@ -1,0 +1,57 @@
+# Forge CI/CD pipeline — Qiu-Technologies/posthog (fork).
+#
+# This fork owns the self-hosted PostHog (hobby) deployment on the cachyos
+# box. Upstream application code is not built here — the box pulls upstream
+# images; the pipeline ships our deploy config + secrets and drives
+# `docker compose` remotely.
+#
+# build:      validate the compose files merge (host step — docker lives on
+#             the runner host, not the sandbox).
+# production: deploy/scripts/deploy-box.sh — vault env → box, sparse-clone the
+#             fork on the box at this SHA, compose pull + up -d (background),
+#             then poll the box's proxy until the web app answers.
+#             The health_check is box-only: the public hostname keeps serving
+#             the previous origin until the ingress cutover.
+#
+# Secrets: none in Forge. The deploy reads the vault (pass) on the runner host.
+stages:
+  build:
+    runs-on: local
+    container: node:24
+    skip_paths:
+      - "deploy/README.md"
+    steps:
+      - name: Placeholder (validation runs on the host)
+        run: echo "compose validation runs on the host step"
+      - name: Validate compose files
+        host: true
+        run: |
+          cd deploy
+          # env_file target — stubbed for validation only (real one is vaulted)
+          touch .env.services
+          trap 'rm -f .env.services' EXIT
+          docker compose -f docker-compose.yml config -q 2>/dev/null \
+            && echo "✓ compose config valid"
+
+  production:
+    runs-on: local
+    needs: [build]
+    container: node:24
+    steps:
+      - name: Placeholder (deploy runs on the host)
+        run: echo "deploy runs on the host step"
+      - name: Deploy the hobby stack to the cachyos box
+        host: true
+        run: bash deploy/scripts/deploy-box.sh
+    bake: 60s
+    health_check:
+      interval: 15s
+      run: |
+        # Box serving path only — the public hostname is cut over separately.
+        for i in $(seq 1 24); do
+          CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 http://10.0.0.201:18080/ 2>/dev/null || echo 000)
+          [ "$CODE" = "200" ] && { echo "✓ posthog web serving on the box"; exit 0; }
+          sleep 15
+        done
+        echo "✗ posthog web did not come up on the box (last http: $CODE)"
+        exit 1

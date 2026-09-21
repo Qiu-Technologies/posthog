@@ -1,0 +1,12 @@
+services:
+  proxy:
+    environment:
+      CADDY_HOST: "http://"
+      CADDY_TLS_BLOCK: ""
+      TLS_BLOCK: ""
+  web:
+    environment:
+      TRUST_ALL_PROXIES: "true"
+  worker:
+    environment:
+      TRUST_ALL_PROXIES: "true"
