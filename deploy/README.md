@@ -79,8 +79,13 @@ cutover (flip `posthog.stevens.fyi` in `~/.cloudflared/config.yml` →
 - **Cutover/rollback of ingress**: `~/.cloudflared/config.yml` (locally managed
   tunnel) — backup, edit `posthog.stevens.fyi`'s service URL, restart the
   supervising unit, re-verify every hostname on that tunnel.
-- **Updating PostHog**: bump `POSTHOG_APP_TAG` in the vault `.env` (currently
-  `latest`; pin a real tag when one matters), push a no-op commit, watch Forge.
+- **Updating PostHog**: the app image is pinned by digest (`POSTHOG_APP_IMAGE`
+  in the vault `.env`) so routine deploys never recreate web/worker on a
+  surprise upstream `latest`. To upgrade: pick the new digest from
+  [Docker Hub](https://hub.docker.com/r/posthog/posthog/tags) (or
+  `docker pull posthog/posthog:latest && docker inspect -f '{{index .RepoDigests 0}}'`
+  on any docker host), update the vault, push a no-op commit, watch Forge —
+  expect one long (15–25 min) recreate-and-migrate boot.
 - **Data migration from the old tier-0 deploy**: see the migration notes in the
   homelab infra records; volumes were shipped cold (stack stopped) with
   `tar` via data-only containers.

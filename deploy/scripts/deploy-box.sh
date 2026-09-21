@@ -80,7 +80,7 @@ R "cd '$BOX_DIR' && rm -f deploy-run.log && PROXY_BIND_IP='$PROXY_BIND_IP' nohup
 
 echo "→ [4/5] waiting for pull + up (bounded ~15 min)"
 DONE=0
-for i in $(seq 1 60); do
+for i in $(seq 1 100); do
   sleep 15
   if R "grep -q '^\[.*\] DONE' '$BOX_DIR/deploy-run.log' 2>/dev/null"; then DONE=1; echo "  finished after ~$((i * 15))s"; break; fi
 done
@@ -91,16 +91,16 @@ if [ "$DONE" != 1 ]; then
 fi
 
 echo "→ [5/5] health: polling http://$PROXY_BIND_IP:$PROXY_PORT/ (the path the tunnel uses)"
-# 60 x 15s = 15 min. Steady-state redeploys (no image change) answer in ~1 min;
+# 100 x 15s = 25 min. Steady-state redeploys (no image change) answer in ~1 min;
 # a recreate on a new posthog/posthog:latest can re-run Django + ClickHouse +
-# async migrations, which on this 12GB box exceeds 10 minutes.
+# async migrations, which on this 12GB box can exceed 20 minutes.
 # PostHog answers / with a 302 to /login — that IS the healthy signal.
-for i in $(seq 1 60); do
+for i in $(seq 1 100); do
   CODE="$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 "http://$PROXY_BIND_IP:$PROXY_PORT/" 2>/dev/null || echo 000)"
   case "$CODE" in
     200|302) echo "✓ posthog web serving on the box (deploy $SHORT, http $CODE)"; exit 0 ;;
   esac
-  [ "$i" = 60 ] && break
+  [ "$i" = 100 ] && break
   sleep 15
 done
 echo "✗ posthog web did not come up on the box (last http: $CODE). Container state:"
